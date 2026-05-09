@@ -12,6 +12,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import com.ocrtranslator.MainActivity
 import com.ocrtranslator.utils.PreferenceManager
 
 class FloatingBarService : Service() {
@@ -38,6 +39,7 @@ class FloatingBarService : Service() {
         val prefs = PreferenceManager(this)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val view = FrameLayout(this).apply {
+            setPadding(12.dp, 0, 12.dp, 0)
             setBackgroundColor(Color.argb((255 * prefs.opacity).toInt(), 61, 220, 132))
             setOnClickListener {
                 val now = System.currentTimeMillis()
@@ -59,7 +61,7 @@ class FloatingBarService : Service() {
         }
 
         val params = WindowManager.LayoutParams(
-            12.dp,
+            32.dp,
             96.dp,
             type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -75,9 +77,19 @@ class FloatingBarService : Service() {
     private fun triggerTranslate() {
         if (!ScreenCaptureSession.isReady) {
             Toast.makeText(this, "请先打开 APP 重新授权屏幕捕获", Toast.LENGTH_LONG).show()
+            startActivity(
+                Intent(this, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
             return
         }
-        ContextCompat.startForegroundService(this, Intent(this, ScreenCaptureService::class.java))
+        Toast.makeText(this, "开始识别当前屏幕", Toast.LENGTH_SHORT).show()
+        val intent = Intent(this, ScreenCaptureService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(this, intent)
+        } else {
+            startService(intent)
+        }
     }
 
     override fun onDestroy() {
