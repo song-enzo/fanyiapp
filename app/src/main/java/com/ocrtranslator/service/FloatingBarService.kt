@@ -1,8 +1,5 @@
 package com.ocrtranslator.service
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.graphics.Color
@@ -13,8 +10,8 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.core.content.ContextCompat
-import com.ocrtranslator.R
 import com.ocrtranslator.utils.PreferenceManager
 
 class FloatingBarService : Service() {
@@ -24,8 +21,12 @@ class FloatingBarService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(1, notification())
-        showFloatingBar()
+        try {
+            showFloatingBar()
+        } catch (e: Exception) {
+            Toast.makeText(this, "悬浮条启动失败，请检查悬浮窗权限", Toast.LENGTH_LONG).show()
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -72,26 +73,11 @@ class FloatingBarService : Service() {
     }
 
     private fun triggerTranslate() {
-        ContextCompat.startForegroundService(this, Intent(this, ScreenCaptureService::class.java))
-    }
-
-    private fun notification(): Notification {
-        val channelId = "floating_bar"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "悬浮翻译服务", NotificationManager.IMPORTANCE_LOW)
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
-            return Notification.Builder(this, channelId)
-                .setContentTitle("OCR 翻译运行中")
-                .setContentText("点击侧边悬浮条开始翻译")
-                .setSmallIcon(R.drawable.ic_translate)
-                .build()
+        if (!ScreenCaptureSession.isReady) {
+            Toast.makeText(this, "请先打开 APP 重新授权屏幕捕获", Toast.LENGTH_LONG).show()
+            return
         }
-        @Suppress("DEPRECATION")
-        return Notification.Builder(this)
-            .setContentTitle("OCR 翻译运行中")
-            .setContentText("点击侧边悬浮条开始翻译")
-            .setSmallIcon(R.drawable.ic_translate)
-            .build()
+        ContextCompat.startForegroundService(this, Intent(this, ScreenCaptureService::class.java))
     }
 
     override fun onDestroy() {

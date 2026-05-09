@@ -14,8 +14,8 @@ class PreferenceManager(context: Context) {
         set(value) = prefs.edit().putString("base_url", value.trimEnd('/')).apply()
 
     var model: String
-        get() = prefs.getString("model", "gemini-1.5-flash") ?: "gemini-1.5-flash"
-        set(value) = prefs.edit().putString("model", value.ifBlank { "gemini-1.5-flash" }).apply()
+        get() = prefs.getString("model", "gemini-2.5-flash") ?: "gemini-2.5-flash"
+        set(value) = prefs.edit().putString("model", value.ifBlank { "gemini-2.5-flash" }).apply()
 
     var isLeft: Boolean
         get() = prefs.getBoolean("is_left", false)

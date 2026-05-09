@@ -12,7 +12,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import com.ocrtranslator.service.FloatingBarService
 import com.ocrtranslator.service.ScreenCaptureSession
 import com.ocrtranslator.utils.PermissionHelper
@@ -88,8 +87,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "请先开启悬浮窗权限", Toast.LENGTH_SHORT).show()
             return
         }
-        val intent = Intent(this, FloatingBarService::class.java)
-        ContextCompat.startForegroundService(this, intent)
+        startService(Intent(this, FloatingBarService::class.java))
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()

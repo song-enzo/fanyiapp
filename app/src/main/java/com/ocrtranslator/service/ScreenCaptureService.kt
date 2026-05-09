@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.widget.Toast
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import com.ocrtranslator.R
@@ -37,7 +38,13 @@ class ScreenCaptureService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(2, notification())
+        try {
+            startForeground(2, notification())
+        } catch (e: Exception) {
+            Toast.makeText(this, "截屏服务启动失败，请重新授权屏幕捕获", Toast.LENGTH_LONG).show()
+            stopSelf()
+            return START_NOT_STICKY
+        }
         scope.launch { runCaptureFlow() }
         return START_NOT_STICKY
     }
@@ -79,7 +86,11 @@ class ScreenCaptureService : Service() {
     }
 
     private suspend fun captureBitmap(resultCode: Int, data: Intent): Bitmap? = withContext(Dispatchers.Main) {
-        val projection = projection(resultCode, data) ?: return@withContext null
+        val projection = try {
+            projection(resultCode, data)
+        } catch (_: Exception) {
+            null
+        } ?: return@withContext null
         projection.registerCallback(object : MediaProjection.Callback() {}, Handler(Looper.getMainLooper()))
         val metrics = displayMetrics()
         val reader = ImageReader.newInstance(metrics.widthPixels, metrics.heightPixels, PixelFormat.RGBA_8888, 2)
