@@ -43,7 +43,7 @@ app/build/outputs/apk/debug/app-debug.apk
 1. 安装 APK
 2. 打开 APP，开启悬浮窗权限
 3. 授权屏幕捕获
-4. 进入设置，填写 Gemini API Key
+4. 进入设置，填写 Gemini API Key，模型名称建议使用 `gemini-2.5-flash`
 5. 点击“启动悬浮翻译”
 6. 在任意应用中点击侧边悬浮条开始 OCR 翻译
 
