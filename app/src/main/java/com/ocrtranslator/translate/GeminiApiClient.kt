@@ -24,36 +24,95 @@ class GeminiApiClient(
             $rawText
         """.trimIndent()
 
+        return if (isOpenAiCompatible()) {
+            translateOpenAi(prompt)
+        } else {
+            translateGemini(prompt)
+        }
+    }
+
+    private fun isOpenAiCompatible(): Boolean {
+        val url = baseUrl.trimEnd('/').lowercase()
+        return url.contains("moonshot") ||
+               url.contains("deepseek") ||
+               url.contains("dashscope") ||
+               url.contains("bigmodel") ||
+               url.contains("openai") ||
+               url.endsWith("/v1")
+    }
+
+    private fun translateGemini(prompt: String): Result<String> {
         val body = gson.toJson(
             mapOf("contents" to listOf(mapOf("parts" to listOf(mapOf("text" to prompt)))))
         )
-
         val request = Request.Builder()
             .url("${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent?key=$apiKey")
             .post(body.toRequestBody("application/json".toMediaType()))
             .build()
-
-        return try {
-            client.newCall(request).execute().use { response ->
-                when {
-                    response.code == 400 -> Result.failure(Exception("请求格式异常，请检查模型名称或接口地址"))
-                    response.code == 401 || response.code == 403 -> Result.failure(Exception("API Key 无效，请检查密钥"))
-                    response.code == 429 -> Result.failure(Exception("请求过于频繁，请稍后重试"))
-                    !response.isSuccessful -> Result.failure(Exception("接口异常（${response.code}），请检查网络"))
-                    else -> parseText(response.body?.string().orEmpty())
-                }
-            }
-        } catch (_: Exception) {
-            Result.failure(Exception("网络连接失败，请检查网络后重试"))
-        }
+        return execute(request)
     }
 
-    private fun parseText(jsonText: String): Result<String> = try {
+    private fun translateOpenAi(prompt: String): Result<String> {
+        val body = gson.toJson(mapOf(
+            "model" to model,
+            "messages" to listOf(
+                mapOf("role" to "system", "content" to "你是一个翻译助手，将非中文文字翻译为简体中文，中文部分原样保留，不要添加解释。"),
+                mapOf("role" to "user", "content" to prompt)
+            )
+        ))
+        val url = "${baseUrl.trimEnd('/')}/chat/completions"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Content-Type", "application/json")
+            .post(body.toRequestBody("application/json".toMediaType()))
+            .build()
+        return executeOpenAi(request)
+    }
+
+    private fun execute(request: Request): Result<String> = try {
+        client.newCall(request).execute().use { response ->
+            when {
+                response.code == 400 -> Result.failure(Exception("请求格式异常，请检查模型名称或接口地址"))
+                response.code == 401 || response.code == 403 -> Result.failure(Exception("API Key 无效，请检查密钥"))
+                response.code == 429 -> Result.failure(Exception("请求过于频繁，请稍后重试"))
+                !response.isSuccessful -> Result.failure(Exception("接口异常（${response.code}），请检查网络"))
+                else -> parseGeminiText(response.body?.string().orEmpty())
+            }
+        }
+    } catch (_: Exception) {
+        Result.failure(Exception("网络连接失败，请检查网络后重试"))
+    }
+
+    private fun executeOpenAi(request: Request): Result<String> = try {
+        client.newCall(request).execute().use { response ->
+            when {
+                response.code == 400 -> Result.failure(Exception("请求格式异常，请检查模型名称或接口地址"))
+                response.code == 401 || response.code == 403 -> Result.failure(Exception("API Key 无效，请检查密钥"))
+                response.code == 429 -> Result.failure(Exception("请求过于频繁，请稍后重试"))
+                !response.isSuccessful -> Result.failure(Exception("接口异常（${response.code}），请检查网络"))
+                else -> parseOpenAiText(response.body?.string().orEmpty())
+            }
+        }
+    } catch (_: Exception) {
+        Result.failure(Exception("网络连接失败，请检查网络后重试"))
+    }
+
+    private fun parseGeminiText(jsonText: String): Result<String> = try {
         val json = gson.fromJson(jsonText, Map::class.java)
         val candidate = (json["candidates"] as List<*>).first() as Map<*, *>
         val content = candidate["content"] as Map<*, *>
         val part = (content["parts"] as List<*>).first() as Map<*, *>
         Result.success((part["text"] as? String).orEmpty().trim())
+    } catch (_: Exception) {
+        Result.failure(Exception("接口返回解析失败，请稍后重试"))
+    }
+
+    private fun parseOpenAiText(jsonText: String): Result<String> = try {
+        val json = gson.fromJson(jsonText, Map::class.java)
+        val choice = (json["choices"] as List<*>).first() as Map<*, *>
+        val message = choice["message"] as Map<*, *>
+        Result.success((message["content"] as? String).orEmpty().trim())
     } catch (_: Exception) {
         Result.failure(Exception("接口返回解析失败，请稍后重试"))
     }

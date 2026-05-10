@@ -6,6 +6,8 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -18,16 +20,49 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+data class ModelPreset(val label: String, val model: String, val baseUrl: String)
+
 class SettingsActivity : AppCompatActivity() {
     private val scope = MainScope()
+
+    private val presets = listOf(
+        ModelPreset("Gemini 2.5 Flash", "gemini-2.5-flash", "https://generativelanguage.googleapis.com"),
+        ModelPreset("Gemini 2.5 Pro", "gemini-2.5-pro-exp-03-25", "https://generativelanguage.googleapis.com"),
+        ModelPreset("Kimi (Moonshot)", "moonshot-v1-8k", "https://api.moonshot.cn/v1"),
+        ModelPreset("DeepSeek", "deepseek-chat", "https://api.deepseek.com"),
+        ModelPreset("通义千问 (Qwen)", "qwen-turbo-latest", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        ModelPreset("GLM-4 (智谱)", "glm-4-flash", "https://open.bigmodel.cn/api/paas/v4"),
+        ModelPreset("自定义", "", ""),
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = PreferenceManager(this)
 
-        val apiKey = input("Gemini API Key", prefs.apiKey)
+        val apiKey = input("API Key", prefs.apiKey)
         val baseUrl = input("接口地址", prefs.baseUrl)
         val model = input("模型名称", prefs.model)
+
+        // 模型预设选择器
+        val presetGroup = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
+        var selectedIndex = presets.indexOfFirst { it.model == prefs.model && it.baseUrl == prefs.baseUrl }
+        if (selectedIndex < 0) selectedIndex = presets.size - 1 // 自定义
+
+        presets.forEachIndexed { i, p ->
+            val rb = RadioButton(this).apply {
+                text = p.label
+                setTextColor(0xFFF4F6FA.toInt())
+                isChecked = i == selectedIndex
+                setOnClickListener {
+                    if (p.label != "自定义") {
+                        model.setText(p.model)
+                        baseUrl.setText(p.baseUrl)
+                    }
+                }
+            }
+            presetGroup.addView(rb)
+        }
+
         val left = CheckBox(this).apply { text = "悬浮条显示在左侧"; isChecked = prefs.isLeft; setTextColor(0xFFF4F6FA.toInt()) }
         val bilingual = CheckBox(this).apply { text = "双语对照显示"; isChecked = prefs.bilingual; setTextColor(0xFFF4F6FA.toInt()) }
         val opacity = SeekBar(this).apply { max = 80; progress = ((prefs.opacity - 0.2f) * 100).toInt() }
@@ -38,8 +73,13 @@ class SettingsActivity : AppCompatActivity() {
             setPadding(24.dp, 24.dp, 24.dp, 24.dp)
             setBackgroundColor(0xFF101114.toInt())
             addView(title("设置"))
+            addView(label("选择模型"))
+            addView(presetGroup)
+            addView(label("API Key"))
             addView(apiKey)
+            addView(label("接口地址"))
             addView(baseUrl)
+            addView(label("模型名称"))
             addView(model)
             addView(label("悬浮条透明度"))
             addView(opacity)
